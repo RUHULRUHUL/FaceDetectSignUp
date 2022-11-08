@@ -1,25 +1,21 @@
-package com.ruhul.facerecognition;
+package com.ruhul.facerecognition
 
-import androidx.appcompat.app.AppCompatActivity;
+import androidx.appcompat.app.AppCompatActivity
+import android.os.Bundle
+import com.ruhul.facerecognition.R
+import android.content.Intent
+import android.os.Handler
+import com.ruhul.facerecognition.MainActivity
 
-import android.content.Intent;
-import android.os.Bundle;
-import android.os.Handler;
-
-public class splash_screen extends AppCompatActivity {
-
-    @Override
-    protected void onCreate(Bundle savedInstanceState) {
-        super.onCreate(savedInstanceState);
-        setContentView(R.layout.activity_splash_screen);
-        Handler handler=new Handler();
-        handler.postDelayed(new Runnable() {
-            @Override
-            public void run() {
-                Intent intent =new Intent(splash_screen.this,MainActivity.class);
-                finish();
-                startActivity(intent);
-            }
-        },2500);
+class splash_screen : AppCompatActivity() {
+    override fun onCreate(savedInstanceState: Bundle?) {
+        super.onCreate(savedInstanceState)
+        setContentView(R.layout.activity_splash_screen)
+        val handler = Handler()
+        handler.postDelayed({
+            val intent = Intent(this@splash_screen, MainActivity::class.java)
+            finish()
+            startActivity(intent)
+        }, 2500)
     }
 }
