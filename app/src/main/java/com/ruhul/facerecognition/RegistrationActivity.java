@@ -1,5 +1,16 @@
 package com.ruhul.facerecognition;
 
+import androidx.annotation.NonNull;
+import androidx.appcompat.app.AlertDialog;
+import androidx.appcompat.app.AppCompatActivity;
+import androidx.camera.core.CameraSelector;
+import androidx.camera.core.ImageAnalysis;
+import androidx.camera.core.ImageProxy;
+import androidx.camera.core.Preview;
+import androidx.camera.lifecycle.ProcessCameraProvider;
+import androidx.core.content.ContextCompat;
+import androidx.databinding.DataBindingUtil;
+
 import android.Manifest;
 import android.annotation.SuppressLint;
 import android.app.Activity;
@@ -18,14 +29,13 @@ import android.graphics.RectF;
 import android.graphics.YuvImage;
 import android.media.Image;
 import android.os.Bundle;
-
-import androidx.annotation.NonNull;
-import androidx.appcompat.app.AlertDialog;
-import androidx.camera.core.CameraSelector;
-import androidx.camera.core.ImageAnalysis;
-import androidx.camera.core.ImageProxy;
-import androidx.camera.core.Preview;
-import androidx.camera.lifecycle.ProcessCameraProvider;
+import android.text.InputType;
+import android.util.Log;
+import android.util.Pair;
+import android.util.Size;
+import android.view.View;
+import android.widget.EditText;
+import android.widget.Toast;
 
 import com.google.common.util.concurrent.ListenableFuture;
 import com.google.mlkit.vision.common.InputImage;
@@ -33,20 +43,7 @@ import com.google.mlkit.vision.face.Face;
 import com.google.mlkit.vision.face.FaceDetection;
 import com.google.mlkit.vision.face.FaceDetector;
 import com.google.mlkit.vision.face.FaceDetectorOptions;
-import com.ruhul.facerecognition.databinding.ActivityMainBinding;
-
-import androidx.appcompat.app.AppCompatActivity;
-import androidx.core.content.ContextCompat;
-import androidx.databinding.DataBindingUtil;
-
-import android.text.InputType;
-import android.util.Log;
-import android.util.Pair;
-import android.util.Size;
-import android.view.View;
-import android.widget.EditText;
-import android.widget.TextView;
-import android.widget.Toast;
+import com.ruhul.facerecognition.databinding.ActivityRegistrationBinding;
 
 import org.tensorflow.lite.Interpreter;
 
@@ -59,17 +56,15 @@ import java.nio.MappedByteBuffer;
 import java.nio.ReadOnlyBufferException;
 import java.nio.channels.FileChannel;
 import java.util.ArrayList;
-import java.util.Arrays;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
-import java.util.Random;
-import java.util.UUID;
 import java.util.concurrent.ExecutionException;
 
-public class MainActivity extends AppCompatActivity {
+public class RegistrationActivity extends AppCompatActivity {
 
-    private ActivityMainBinding binding;
+    private ActivityRegistrationBinding binding;
+
     String modelFile = "mobile_face_net.tflite";
 
     FaceDetector detector;
@@ -81,13 +76,11 @@ public class MainActivity extends AppCompatActivity {
     private ListenableFuture<ProcessCameraProvider> cameraProviderFuture;
     private static final int MY_CAMERA_REQUEST_CODE = 100;
 
-    TextView reco_name, preview_info, textAbove_preview;
-
     boolean developerMode = false;
     float distance = 1.0f;
 
     //Face add StartFlag
-    boolean recognitionFlag = true;
+    /*    boolean recognitionFlag = true;*/
 
     boolean flipX = false;
 
@@ -106,27 +99,29 @@ public class MainActivity extends AppCompatActivity {
     //Output size of model
     int OUTPUT_SIZE = 192;
 
+
     private final HashMap<String, SimilarityClassifier.Recognition> registered = new HashMap<>(); //saved Faces
-    private final String log = "MainActivityDebug";
+    private final String log = "MainActivity:";
+
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
-        setContentView(R.layout.activity_main);
-        binding = DataBindingUtil.setContentView(this, R.layout.activity_main);
+        setContentView(R.layout.activity_registration);
+        binding = DataBindingUtil.setContentView(this, R.layout.activity_registration);
 
         loadModelTFlow();
-        initView();
         requestPermission();
         clickEvent();
         cameraBind();
 
     }
 
+
     //Load model
     private void loadModelTFlow() {
         try {
-            tfLite = new Interpreter(loadModelFile(MainActivity.this, modelFile));
+            tfLite = new Interpreter(loadModelFile(this, modelFile));
         } catch (IOException e) {
             e.printStackTrace();
         }
@@ -148,27 +143,6 @@ public class MainActivity extends AppCompatActivity {
         binding.insertFace.setOnClickListener((v -> {
             addFace();
         }));
-
-        binding.recognize.setOnClickListener(v -> {
-            if (binding.recognize.getText().toString().equals("Recognize")) {
-                recognitionFlag = true;
-                textAbove_preview.setText("Recognized Face:");
-                binding.recognize.setText("Add Face");
-                binding.insertFace.setVisibility(View.INVISIBLE);
-                reco_name.setVisibility(View.VISIBLE);
-                binding.showImage.setVisibility(View.INVISIBLE);
-                preview_info.setText("");
-            } else {
-                textAbove_preview.setText("Face Preview: ");
-                binding.recognize.setText("Recognize");
-                binding.insertFace.setVisibility(View.VISIBLE);
-                reco_name.setVisibility(View.INVISIBLE);
-                binding.showImage.setVisibility(View.VISIBLE);
-                preview_info.setText("1.Bring Face in view of Camera.\n\n2.Your Face preview will appear here.\n\n3.Click Add button to save face.");
-
-            }
-
-        });
     }
 
     private void requestPermission() {
@@ -177,69 +151,28 @@ public class MainActivity extends AppCompatActivity {
         }
     }
 
-    private void initView() {
-
-        binding.insertFace.setVisibility(View.INVISIBLE);
-        binding.showImage.setVisibility(View.INVISIBLE);
-
-        reco_name = findViewById(R.id.textView);
-        preview_info = findViewById(R.id.textView2);
-        textAbove_preview = findViewById(R.id.textAbovePreview);
-        textAbove_preview.setText("Recognized Face:");
-    }
-
     private void addFace() {
-        recognitionFlag = false;
         AlertDialog.Builder builder = new AlertDialog.Builder(this);
         builder.setTitle("Enter Name");
-        builder.setCancelable(false);
         final EditText input = new EditText(this);
         input.setInputType(InputType.TYPE_CLASS_TEXT);
         builder.setView(input);
+
         builder.setPositiveButton("ADD", (dialog, which) -> {
 
             //Create and Initialize new object with Face embeddings and Name.
-            Random random = new Random();
-            int id = random.nextInt(100);
-
             SimilarityClassifier.Recognition result = new SimilarityClassifier.Recognition(
-                    String.valueOf(id), input.getText().toString(), -1f);
-
+                    "0", "", -1f);
             result.setExtra(embed);
-
             registered.put(input.getText().toString(), result);
-
-
-            //startRecognition
-            //because Face add now start recognition when status = true
-            recognitionFlag = true;
 
         });
 
         builder.setNegativeButton("Cancel", (dialog, which) -> {
-            //startRecognition
-            recognitionFlag = true;
             dialog.cancel();
         });
 
         builder.show();
-
-    }
-
-    private void showLogEmbedFace() {
-        String lineSeparator = System.lineSeparator();
-        StringBuilder sb = new StringBuilder();
-
-        Log.d(log, "arraySize: " + embed.length);
-
-        for (float[] row : embed) {
-            sb.append(Arrays.toString(row))
-                    .append(lineSeparator);
-        }
-
-        String embedFace = sb.toString();
-
-        Log.d(log, "face add  Embed data: " + embedFace);
 
     }
 
@@ -301,6 +234,7 @@ public class MainActivity extends AppCompatActivity {
 
             if (mediaImage != null) {
                 image = InputImage.fromMediaImage(mediaImage, imageProxy.getImageInfo().getRotationDegrees());
+
                 detectFaceProcess(image, mediaImage, imageProxy);
             }
         });
@@ -310,6 +244,8 @@ public class MainActivity extends AppCompatActivity {
 
     //Process acquired image to detect faces
     private void detectFaceProcess(InputImage image, Image mediaImage, ImageProxy imageProxy) {
+
+
         //Initialize Face Detector
         FaceDetectorOptions highAccuracyOpts =
                 new FaceDetectorOptions.Builder()
@@ -330,7 +266,6 @@ public class MainActivity extends AppCompatActivity {
 
                                 Face face = faces.get(0); //Get first face from detected faces
 
-
                                 Rect rect = face.getBoundingBox();
                                 ReactOverlay reactOverlay = new ReactOverlay(binding.graphicOverlay, rect);
                                 binding.graphicOverlay.add(reactOverlay);
@@ -338,10 +273,10 @@ public class MainActivity extends AppCompatActivity {
                                 //mediaImage to Bitmap
                                 Bitmap frame_bmp = toBitmap(mediaImage);
 
-                                int rot = imageProxy.getImageInfo().getRotationDegrees();
+                                int rotationDegrees = imageProxy.getImageInfo().getRotationDegrees();
 
                                 //Adjust orientation of Face
-                                Bitmap frame_bmp1 = rotateBitmap(frame_bmp, rot, false, false);
+                                Bitmap frame_bmp1 = rotateBitmap(frame_bmp, rotationDegrees, false, false);
 
 
                                 //Get bounding box of face
@@ -357,28 +292,21 @@ public class MainActivity extends AppCompatActivity {
 
                                 //Send scaled bitmap to create face embeddings.
                                 //save Face in HashMap
-                                if (recognitionFlag)
+                                if (scaled != null)
                                     recognizeImage(scaled);
 
                             } else {
-
-                                binding.showImage.setImageBitmap(null);
                                 binding.graphicOverlay.refreshDrawableState();
                                 binding.graphicOverlay.clear();
-
-                                if (registered.isEmpty())
-                                    reco_name.setText("Add Face");
-                                else
-                                    reco_name.setText("No Face Detected!");
                             }
 
                         })
                 .addOnFailureListener(
                         e -> {
-                            Log.d(log, "addOnFailureListener face detection Error: " + e.getMessage());
+                            Log.d(log, "addOnFailureListener - " + e.getMessage());
                         })
                 .addOnCompleteListener(task -> {
-                    Log.d(log, "addOnCompleteListener  " + task.toString());
+
                     imageProxy.close(); //v.important to acquire next frame for analysis
                 });
     }
@@ -389,6 +317,7 @@ public class MainActivity extends AppCompatActivity {
         binding.showImage.setImageBitmap(bitmap);
 
         //Create ByteBuffer to store normalized image
+
         ByteBuffer imgData = ByteBuffer.allocateDirect(1 * inputSize * inputSize * 3 * 4);
 
         imgData.order(ByteOrder.nativeOrder());
@@ -422,12 +351,16 @@ public class MainActivity extends AppCompatActivity {
         Map<Integer, Object> outputMap = new HashMap<>();
 
         embed = new float[1][OUTPUT_SIZE]; //output of model will be stored in this variable
+
         outputMap.put(0, embed);
+
         tfLite.runForMultipleInputsOutputs(inputArray, outputMap); //Run model
-        showLogEmbedFace();
 
 
         float distance_local;
+/*        String id = "0";
+        String label = "?";*/
+
         //Compare new face with saved Faces.
         if (registered.size() > 0) {
 
@@ -436,18 +369,18 @@ public class MainActivity extends AppCompatActivity {
             if (nearest.get(0) != null) {
 
                 final String name = nearest.get(0).first; //get name and distance of closest matching face
+                // label = name;
                 distance_local = nearest.get(0).second;
-
                 if (developerMode) {
-                    if (distance_local < distance) //If distance between Closest found face is more than 1.000 ,then output UNKNOWN face.
+                  /*  if (distance_local < distance) //If distance between Closest found face is more than 1.000 ,then output UNKNOWN face.
                         reco_name.setText("Nearest: " + name + "\nDist: " + String.format("%.3f", distance_local) + "\n2nd Nearest: " + nearest.get(1).first + "\nDist: " + String.format("%.3f", nearest.get(1).second));
                     else
-                        reco_name.setText("Unknown " + "\nDist: " + String.format("%.3f", distance_local) + "\nNearest: " + name + "\nDist: " + String.format("%.3f", distance_local) + "\n2nd Nearest: " + nearest.get(1).first + "\nDist: " + String.format("%.3f", nearest.get(1).second));
+                        reco_name.setText("Unknown " + "\nDist: " + String.format("%.3f", distance_local) + "\nNearest: " + name + "\nDist: " + String.format("%.3f", distance_local) + "\n2nd Nearest: " + nearest.get(1).first + "\nDist: " + String.format("%.3f", nearest.get(1).second));*/
                 } else {
-                    if (distance_local < distance) //If distance between Closest found face is more than 1.000 ,then output UNKNOWN face.
+               /*     if (distance_local < distance) //If distance between Closest found face is more than 1.000 ,then output UNKNOWN face.
                         reco_name.setText(name);
                     else
-                        reco_name.setText("Unknown");
+                        reco_name.setText("Unknown");*/
                 }
 
 
@@ -478,6 +411,7 @@ public class MainActivity extends AppCompatActivity {
                 ret = new Pair<>(name, distance);
             }
         }
+
 
         if (prev_ret == null) prev_ret = ret;
         neighbour_list.add(ret);
@@ -630,7 +564,4 @@ public class MainActivity extends AppCompatActivity {
         byte[] imageBytes = out.toByteArray();
         return BitmapFactory.decodeByteArray(imageBytes, 0, imageBytes.length);
     }
-
-
 }
-

@@ -14,6 +14,14 @@ android {
         versionCode 1
         versionName "1.0"
 
+        javaCompileOptions {
+            annotationProcessorOptions {
+                arguments += ["room.schemaLocation":
+                                      "$projectDir/schemas".toString()]
+            }
+        }
+
+
         testInstrumentationRunner "androidx.test.runner.AndroidJUnitRunner"
     }
 
@@ -51,6 +59,12 @@ dependencies {
     androidTestImplementation 'androidx.test.espresso:espresso-core:3.4.0'
 
 
+    //Room DB
+    def room_version = "2.3.0"
+    implementation "androidx.room:room-runtime:$room_version"
+    annotationProcessor "androidx.room:room-compiler:$room_version"
+
+
     //ML Kit (To detect faces)
     implementation 'com.google.android.gms:play-services-mlkit-face-detection:17.1.0'
 
@@ -61,17 +75,20 @@ dependencies {
     implementation "com.airbnb.android:lottie:4.2.2"
 
     // CameraX View class (For camera preview)
+    //noinspection GradleDependency
     implementation "androidx.camera:camera-core:1.2.0-alpha04"
+    //noinspection GradleDependency
     implementation "androidx.camera:camera-camera2:1.2.0-alpha04"
+    //noinspection GradleDependency
     implementation "androidx.camera:camera-lifecycle:1.2.0-alpha04"
+    //noinspection GradleDependency
     implementation "androidx.camera:camera-view:1.2.0-alpha04"
+
 
     //TensorFlow Lite libraries (To recognize faces)
     implementation 'org.tensorflow:tensorflow-lite-task-vision:0.3.0'
     implementation 'org.tensorflow:tensorflow-lite-support:0.3.0'
     implementation 'org.tensorflow:tensorflow-lite:0.0.0-nightly-SNAPSHOT'
-
-
 
 
 }
